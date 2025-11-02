@@ -16,8 +16,8 @@ os.makedirs(PROGRAMAS_FOLDER, exist_ok=True)
 with app.app_context():
     db.create_all()
     if not Usuario.query.filter_by(usuario="admin").first():
-        admin = Usuario(usuario="admin", rol="admin")
-        admin.set_password("admin123")  # ⚠️ CAMBIALA por una segura
+        admin = Usuario(usuario="KokuGod", rol="admin")
+        admin.set_password("250310")  # ⚠️ CAMBIALA por una segura
         db.session.add(admin)
         db.session.commit()
 
