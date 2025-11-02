@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Inicio{% endblock %}
+{% block content %}
+  <h1>Bienvenido{% if usuario %}, {{ usuario }}{% endif %}!</h1>
+  <p>Esta es la página principal. Subí tus programas (exe/zip/py/lo que sea) en la carpeta <code>/programas</code> del repo y luego entrá a <strong>Panel Admin → Gestionar Programas</strong> para indexarlos en la base de datos.</p>
+{% endblock %}

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Mi Web{% endblock %}</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; padding: 0 15px; }
+    nav a { margin-right: 10px; }
+    .flash { padding:8px; margin:8px 0; border-radius:4px; }
+    .flash.success { background:#e6ffed; border:1px solid #0b9a3c; }
+    .flash.error { background:#ffe6e6; border:1px solid #d12b2b; }
+    form { margin:8px 0; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="{{ url_for('index') }}">Inicio</a> |
+    <a href="{{ url_for('programas') }}">Programas</a> |
+    {% if usuario %}
+      {% if session['rol'] == 'admin' %}
+        <a href="{{ url_for('admin') }}">Panel Admin</a> |
+        <a href="{{ url_for('admin_programas') }}">Gestionar Programas</a> |
+      {% endif %}
+      <a href="{{ url_for('logout') }}">Cerrar sesión ({{ usuario }})</a>
+    {% else %}
+      <a href="{{ url_for('login') }}">Login</a> |
+      <a href="{{ url_for('register') }}">Registro</a>
+    {% endif %}
+  </nav>
+  <hr>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat, msg in messages %}
+        <div class="flash {{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</body>
+</html>

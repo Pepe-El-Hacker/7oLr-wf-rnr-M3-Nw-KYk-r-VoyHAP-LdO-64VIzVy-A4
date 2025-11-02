@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Administrar Programas{% endblock %}
+{% block content %}
+  <h2>Panel de Programas</h2>
+
+  <h3>Agregar archivos existentes en /programas</h3>
+  {% if archivos_no_indexados %}
+    <form method="POST" action="{{ url_for('agregar_programa') }}">
+      Archivo:
+      <select name="archivo">
+        {% for a in archivos_no_indexados %}
+          <option value="{{ a }}">{{ a }}</option>
+        {% endfor %}
+      </select><br><br>
+      Nombre (opcional): <input type="text" name="nombre"><br><br>
+      Descripción (opcional): <input type="text" name="descripcion"><br><br>
+      <button type="submit">Agregar a la base</button>
+    </form>
+  {% else %}
+    <p>No hay archivos nuevos en la carpeta <code>/programas</code>.</p>
+  {% endif %}
+
+  <hr>
+  <h3>Programas en la base de datos</h3>
+  {% if programas %}
+    <ul>
+      {% for p in programas %}
+        <li>
+          <strong>{{ p.nombre }}</strong> — {{ p.descripcion }} — <code>{{ p.archivo }}</code>
+          | <a href="{{ url_for('descargar', id=p.id) }}">Probar descarga</a>
+          <form style="display:inline;" method="POST" action="{{ url_for('eliminar_programa', id=p.id) }}">
+            <button type="submit" onclick="return confirm('Eliminar programa?')">Eliminar</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No hay programas registrados.</p>
+  {% endif %}
+{% endblock %}

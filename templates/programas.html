@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Programas{% endblock %}
+{% block content %}
+  <h2>Programas disponibles</h2>
+  <ul>
+  {% for prog in programas %}
+    <li>
+      <strong>{{ prog.nombre }}</strong> — {{ prog.descripcion }}
+      {% if usuario %}
+        | <a href="{{ url_for('descargar', id=prog.id) }}">Descargar</a>
+      {% else %}
+        | <em>Iniciá sesión para descargar</em>
+      {% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+{% endblock %}
