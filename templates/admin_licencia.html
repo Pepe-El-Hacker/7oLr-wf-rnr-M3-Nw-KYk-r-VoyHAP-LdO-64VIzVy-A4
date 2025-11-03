@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Admin - Licencias{% endblock %}
+{% block content %}
+  <h2>Administrar Licencias</h2>
+
+  <section style="margin-bottom:20px;">
+    <h3>Crear licencia manual</h3>
+    <form method="POST" action="{{ url_for('admin_create_license') }}">
+      HWID: <input type="text" name="hwid" required>
+      Program code: <input type="text" name="program_code" required>
+      <button type="submit">Crear y activar</button>
+    </form>
+    <p><strong>Descargar DB:</strong> <a href="{{ url_for('admin_download_db') }}">Descargar database.db</a> (solo admins)</p>
+  </section>
+
+  <section style="margin-bottom:30px;">
+    <h3>Solicitudes pendientes</h3>
+    {% if requests %}
+      <ul>
+        {% for r in requests %}
+          <li>
+            ID: {{ r.id }} — HWID: <code>{{ r.hwid }}</code> — Program: <code>{{ r.program_code }}</code> — Fecha: {{ r.created_at }}
+            <form style="display:inline;" method="POST" action="{{ url_for('admin_approve_request', req_id=r.id) }}">
+              <button type="submit">Aprobar</button>
+            </form>
+            <form style="display:inline;" method="POST" action="{{ url_for('admin_delete_request', id=r.id) }}">
+              <button type="submit" onclick="return confirm('Eliminar request?')">Eliminar</button>
+            </form>
+            {% if r.note %}
+              <div>Nota: {{ r.note }}</div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No hay solicitudes pendientes.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h3>Licencias registradas</h3>
+    {% if licenses %}
+      <table border="1" cellpadding="6" cellspacing="0">
+        <tr><th>ID</th><th>HWID</th><th>Program code</th><th>License key</th><th>Active</th><th>Last seen</th><th>Acciones</th></tr>
+        {% for lic in licenses %}
+          <tr>
+            <td>{{ lic.id }}</td>
+            <td><code>{{ lic.hwid }}</code></td>
+            <td><code>{{ lic.program_code }}</code></td>
+            <td><code>{{ lic.license_key }}</code></td>
+            <td>{{ 'Sí' if lic.active else 'No' }}</td>
+            <td>{{ lic.last_seen_at }}</td>
+            <td>
+              {% if lic.active %}
+                <form method="POST" action="{{ url_for('admin_revoke_license', id=lic.id) }}" style="display:inline;">
+                  <button type="submit" onclick="return confirm('Revocar licencia?')">Revocar</button>
+                </form>
+              {% else %}
+                <form method="POST" action="{{ url_for('admin_activate_license', id=lic.id) }}" style="display:inline;">
+                  <button type="submit">Activar</button>
+                </form>
+              {% endif %}
+              <form method="POST" action="{{ url_for('admin_delete_license', id=lic.id) }}" style="display:inline;">
+                <button type="submit" onclick="return confirm('Eliminar licencia?')">Eliminar</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p>No hay licencias registradas.</p>
+    {% endif %}
+  </section>
+{% endblock %}

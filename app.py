@@ -1,27 +1,28 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, flash
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, flash, jsonify
 from config import Config
-from models import db, Usuario, Programa
+from models import db, Usuario, Programa, LicenseRequest, License
 from functools import wraps
 import os
+import secrets
+from datetime import datetime
 
 app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
 
-# Carpeta donde estarían los archivos que subís al repo (commiteás)
 PROGRAMAS_FOLDER = os.path.join(os.path.dirname(__file__), "programas")
 os.makedirs(PROGRAMAS_FOLDER, exist_ok=True)
 
-# Crear DB y usuario admin por defecto si no existen
+# ------------------ INICIALIZACIÓN ------------------
 with app.app_context():
     db.create_all()
-    if not Usuario.query.filter_by(usuario="admin").first():
+    if not Usuario.query.filter_by(usuario="KokuGod").first():
         admin = Usuario(usuario="KokuGod", rol="admin")
-        admin.set_password("250310")  # ⚠️ CAMBIALA por una segura
+        admin.set_password("250310")  # ⚠️ Cambiar por una contraseña segura
         db.session.add(admin)
         db.session.commit()
 
-# Decoradores
+# ------------------ DECORADORES ------------------
 def login_requerido(f):
     @wraps(f)
     def decorador(*args, **kwargs):
@@ -38,7 +39,7 @@ def admin_requerido(f):
         return f(*args, **kwargs)
     return decorador
 
-# Rutas públicas
+# ------------------ RUTAS PÚBLICAS ------------------
 @app.route("/")
 def index():
     return render_template("index.html", usuario=session.get("usuario"))
@@ -52,10 +53,9 @@ def programas():
 @login_requerido
 def descargar(id):
     prog = Programa.query.get_or_404(id)
-    # Enviamos el archivo desde la carpeta /programas
     return send_from_directory(PROGRAMAS_FOLDER, prog.archivo, as_attachment=True)
 
-# Autenticación
+# ------------------ LOGIN / REGISTER ------------------
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -93,14 +93,14 @@ def logout():
     flash("Sesión cerrada.", "success")
     return redirect(url_for("index"))
 
-# Panel admin general
+# ------------------ PANEL ADMIN ------------------
 @app.route("/admin")
 @admin_requerido
 def admin():
     usuarios = Usuario.query.all()
     return render_template("admin.html", usuarios=usuarios, usuario=session.get("usuario"))
 
-# Panel para gestionar programas: lista DB + archivos físicos no indexados
+# ADMIN PROGRAMAS
 @app.route("/admin/programas")
 @admin_requerido
 def admin_programas():
@@ -110,7 +110,6 @@ def admin_programas():
     archivos_no_indexados = [f for f in archivos if f not in archivos_en_db]
     return render_template("admin_programas.html", programas=programas_db, archivos_no_indexados=archivos_no_indexados, usuario=session.get("usuario"))
 
-# Agregar a la base un archivo que ya esté en /programas (no sube archivo)
 @app.route("/admin/programas/agregar", methods=["POST"])
 @admin_requerido
 def agregar_programa():
@@ -124,7 +123,6 @@ def agregar_programa():
     if not os.path.exists(ruta):
         flash("El archivo no existe en la carpeta programas.", "error")
         return redirect(url_for("admin_programas"))
-    # Evitar duplicados en DB
     if Programa.query.filter_by(archivo=archivo).first():
         flash("El archivo ya está indexado.", "error")
         return redirect(url_for("admin_programas"))
@@ -134,7 +132,6 @@ def agregar_programa():
     flash(f"Programa '{nombre}' agregado.", "success")
     return redirect(url_for("admin_programas"))
 
-# Eliminar entrada de DB (no borra el archivo físico)
 @app.route("/admin/programas/eliminar/<int:id>", methods=["POST"])
 @admin_requerido
 def eliminar_programa(id):
@@ -144,6 +141,113 @@ def eliminar_programa(id):
     flash(f"Programa '{p.nombre}' eliminado de la base.", "success")
     return redirect(url_for("admin_programas"))
 
+# ------------------ API LICENCIAS ------------------
+@app.route("/api/ping", methods=["POST"])
+def api_ping():
+    data = request.get_json(force=True)
+    hwid = data.get("hwid")
+    program_code = data.get("program_code")
+    if not hwid or not program_code:
+        return jsonify({"authorized": False, "reason": "missing_parameters"}), 400
+
+    lic = License.query.filter_by(hwid=hwid, program_code=program_code, active=True).first()
+    if lic:
+        lic.last_seen_at = datetime.utcnow()
+        db.session.commit()
+    return jsonify({"authorized": bool(lic)}), 200
+
+@app.route("/api/request_activation", methods=["POST"])
+def api_request_activation():
+    data = request.get_json(force=True)
+    hwid = data.get("hwid")
+    program_code = data.get("program_code")
+    note = data.get("note", "")
+    if not hwid or not program_code:
+        return jsonify({"ok": False, "reason": "missing_parameters"}), 400
+
+    req = LicenseRequest(hwid=hwid, program_code=program_code, note=note)
+    db.session.add(req)
+    db.session.commit()
+    return jsonify({"ok": True, "message": "request_received"}), 200
+
+# ------------------ ADMIN LICENCIAS ------------------
+@app.route("/admin/licencias")
+@admin_requerido
+def admin_licencias():
+    licenses = License.query.order_by(License.id.desc()).all()
+    requests = LicenseRequest.query.order_by(LicenseRequest.id.desc()).all()
+    return render_template("admin_licencia.html", licenses=licenses, requests=requests, usuario=session.get("usuario"))
+
+@app.route("/admin/licencias/crear", methods=["POST"])
+@admin_requerido
+def admin_create_license():
+    hwid = request.form.get("hwid")
+    program_code = request.form.get("program_code")
+    if not hwid or not program_code:
+        flash("HWID y Program code son requeridos.", "error")
+        return redirect(url_for("admin_licencias"))
+    license_key = secrets.token_hex(16)
+    nueva = License(hwid=hwid, program_code=program_code, license_key=license_key, active=True)
+    db.session.add(nueva)
+    db.session.commit()
+    flash(f"Licencia creada para HWID {hwid}.", "success")
+    return redirect(url_for("admin_licencias"))
+
+@app.route("/admin/licencias/aprobar/<int:req_id>", methods=["POST"])
+@admin_requerido
+def admin_approve_request(req_id):
+    req = LicenseRequest.query.get_or_404(req_id)
+    license_key = secrets.token_hex(16)
+    nueva = License(hwid=req.hwid, program_code=req.program_code, license_key=license_key, active=True)
+    db.session.add(nueva)
+    db.session.delete(req)
+    db.session.commit()
+    flash(f"Solicitud ID {req.id} aprobada y licencia creada.", "success")
+    return redirect(url_for("admin_licencias"))
+
+@app.route("/admin/licencias/eliminar_request/<int:id>", methods=["POST"])
+@admin_requerido
+def admin_delete_request(id):
+    req = LicenseRequest.query.get_or_404(id)
+    db.session.delete(req)
+    db.session.commit()
+    flash(f"Solicitud ID {id} eliminada.", "success")
+    return redirect(url_for("admin_licencias"))
+
+@app.route("/admin/licencias/activar/<int:id>", methods=["POST"])
+@admin_requerido
+def admin_activate_license(id):
+    lic = License.query.get_or_404(id)
+    lic.active = True
+    db.session.commit()
+    flash(f"Licencia {lic.id} activada.", "success")
+    return redirect(url_for("admin_licencias"))
+
+@app.route("/admin/licencias/revocar/<int:id>", methods=["POST"])
+@admin_requerido
+def admin_revoke_license(id):
+    lic = License.query.get_or_404(id)
+    lic.active = False
+    db.session.commit()
+    flash(f"Licencia {lic.id} revocada.", "success")
+    return redirect(url_for("admin_licencias"))
+
+@app.route("/admin/licencias/eliminar/<int:id>", methods=["POST"])
+@admin_requerido
+def admin_delete_license(id):
+    lic = License.query.get_or_404(id)
+    db.session.delete(lic)
+    db.session.commit()
+    flash(f"Licencia {lic.id} eliminada.", "success")
+    return redirect(url_for("admin_licencias"))
+
+# Descargar DB
+@app.route("/admin/licencias/descargar")
+@admin_requerido
+def admin_download_db():
+    db_path = app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")
+    return send_from_directory(os.path.dirname(db_path), os.path.basename(db_path), as_attachment=True)
+
+# ------------------ EJECUTAR ------------------
 if __name__ == "__main__":
-    # Para desarrollo local
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0", port=5000)

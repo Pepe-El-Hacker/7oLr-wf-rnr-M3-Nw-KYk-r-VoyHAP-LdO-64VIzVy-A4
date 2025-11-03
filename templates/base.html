@@ -20,6 +20,7 @@
       {% if session['rol'] == 'admin' %}
         <a href="{{ url_for('admin') }}">Panel Admin</a> |
         <a href="{{ url_for('admin_programas') }}">Gestionar Programas</a> |
+        <a href="{{ url_for('admin_licencias') }}">Gestionar Licencias</a> |
       {% endif %}
       <a href="{{ url_for('logout') }}">Cerrar sesión ({{ usuario }})</a>
     {% else %}
