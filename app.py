@@ -178,6 +178,31 @@ def admin_licencias():
     requests = LicenseRequest.query.order_by(LicenseRequest.id.desc()).all()
     return render_template("admin_licencia.html", licenses=licenses, requests=requests, usuario=session.get("usuario"))
 
+@app.route("/admin/licencias/requests_json")
+@admin_requerido
+def requests_json():
+    requests = LicenseRequest.query.order_by(LicenseRequest.id.desc()).all()
+    return jsonify([{
+        'id': r.id,
+        'hwid': r.hwid,
+        'program_code': r.program_code,
+        'created_at': r.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        'note': r.note
+    } for r in requests])
+
+@app.route("/admin/licencias/licenses_json")
+@admin_requerido
+def licenses_json():
+    licenses = License.query.order_by(License.id.desc()).all()
+    return jsonify([{
+        'id': l.id,
+        'hwid': l.hwid,
+        'program_code': l.program_code,
+        'license_key': l.license_key,
+        'active': l.active,
+        'last_seen_at': l.last_seen_at.strftime("%Y-%m-%d %H:%M:%S") if l.last_seen_at else None
+    } for l in licenses])
+
 @app.route("/admin/licencias/crear", methods=["POST"])
 @admin_requerido
 def admin_create_license():
