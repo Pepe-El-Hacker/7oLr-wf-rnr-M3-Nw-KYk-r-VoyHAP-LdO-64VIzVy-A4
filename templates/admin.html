@@ -1,13 +1,39 @@
 {% extends "base.html" %}
+
 {% block content %}
+<div class="container mt-4">
   <h2>Panel de Administración</h2>
-  <ul>
-    <li><a href="{{ url_for('admin_programas') }}">Administrar Programas</a></li>
-  </ul>
-  <h3>Usuarios</h3>
-  <ul>
-  {% for u in usuarios %}
-    <li>{{ u.usuario }} ({{ u.rol }})</li>
-  {% endfor %}
-  </ul>
+  <hr>
+
+  <div class="mb-4">
+    <ul>
+      <li><a href="{{ url_for('admin_programas') }}">🧩 Administrar Programas</a></li>
+      <li><a href="{{ url_for('admin_licencias') }}">🔑 Administrar Licencias</a></li>
+    </ul>
+  </div>
+
+  <h3>👥 Usuarios registrados</h3>
+  <table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Usuario</th>
+        <th>Rol</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in usuarios %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.usuario }}</td>
+        <td>{{ u.rol }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="4">No hay usuarios registrados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}

@@ -273,6 +273,36 @@ def admin_download_db():
     db_path = app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")
     return send_from_directory(os.path.dirname(db_path), os.path.basename(db_path), as_attachment=True)
 
+@app.route("/admin/licencias/subir", methods=["GET", "POST"])
+@admin_requerido
+def admin_upload_db():
+    db_path = app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")
+    if request.method == "POST":
+        file = request.files.get("dbfile")
+        if not file:
+            return "Error: no se subió ningún archivo.", 400
+        if not file.filename.endswith(".db"):
+            return "Error: el archivo debe tener extensión .db", 400
+
+        # Backup de la base actual
+        backup_path = db_path + ".backup"
+        if os.path.exists(db_path):
+            os.rename(db_path, backup_path)
+
+        # Guardar la nueva base
+        file.save(db_path)
+        return f"✅ Base de datos reemplazada correctamente.<br>Backup creado en: {backup_path}"
+
+    # Si es GET, mostramos un formulario HTML básico inline (sin plantilla)
+    return """
+        <h2>Subir nueva base de datos (.db)</h2>
+        <form method="post" enctype="multipart/form-data">
+            <input type="file" name="dbfile" accept=".db" required>
+            <button type="submit">Subir</button>
+        </form>
+        <p>Se reemplazará la base de datos actual y se creará un backup automáticamente.</p>
+    """
+
 # ------------------ EJECUTAR ------------------
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
